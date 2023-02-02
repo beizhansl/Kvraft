@@ -8,12 +8,14 @@ package raft
 // test with the original before submitting.
 //
 
-import "testing"
-import "fmt"
-import "time"
-import "math/rand"
-import "sync/atomic"
-import "sync"
+import (
+	"fmt"
+	"math/rand"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+)
 
 // The tester generously allows solutions to complete elections in one second
 // (much more than the paper's range of timeouts).
@@ -58,35 +60,35 @@ func TestReElection2A(t *testing.T) {
 	cfg.begin("Test (2A): election after network failure")
 
 	leader1 := cfg.checkOneLeader()
-
+	// println("-----check disconnect-----")
 	// if the leader disconnects, a new one should be elected.
 	cfg.disconnect(leader1)
 	cfg.checkOneLeader()
-
+	// println("-----check reconnect----")
 	// if the old leader rejoins, that shouldn't
 	// disturb the new leader. and the old leader
 	// should switch to follower.
 	cfg.connect(leader1)
 	leader2 := cfg.checkOneLeader()
-
+	// println("---------------------")
 	// if there's no quorum, no new leader should
 	// be elected.
 	cfg.disconnect(leader2)
 	cfg.disconnect((leader2 + 1) % servers)
 	time.Sleep(2 * RaftElectionTimeout)
-
+	// println("---------------------")
 	// check that the one connected server
 	// does not think it is the leader.
 	cfg.checkNoLeader()
-
+	// println("---------------------")
 	// if a quorum arises, it should elect a leader.
 	cfg.connect((leader2 + 1) % servers)
 	cfg.checkOneLeader()
-
+	// println("---------------------")
 	// re-join of last node shouldn't prevent leader from existing.
 	cfg.connect(leader2)
 	cfg.checkOneLeader()
-
+	// println("---------------------")
 	cfg.end()
 }
 
@@ -360,6 +362,8 @@ func TestFailNoAgree2B(t *testing.T) {
 }
 
 func TestConcurrentStarts2B(t *testing.T) {
+	// clean log
+
 	servers := 3
 	cfg := make_config(t, servers, false, false)
 	defer cfg.cleanup()
@@ -466,13 +470,13 @@ func TestRejoin2B(t *testing.T) {
 	defer cfg.cleanup()
 
 	cfg.begin("Test (2B): rejoin of partitioned leader")
-
+	// println("-------------leader1 101------------------")
 	cfg.one(101, servers, true)
 
 	// leader network failure
 	leader1 := cfg.checkOneLeader()
 	cfg.disconnect(leader1)
-
+	// println("-------------leader1 out-----------------------")
 	// make old leader try to agree on some entries
 	cfg.rafts[leader1].Start(102)
 	cfg.rafts[leader1].Start(103)
@@ -480,19 +484,22 @@ func TestRejoin2B(t *testing.T) {
 
 	// new leader commits, also for index=2
 	cfg.one(103, 2, true)
-
+	// println("-------------leader2 103-----------------------")
 	// new leader network failure
 	leader2 := cfg.checkOneLeader()
 	cfg.disconnect(leader2)
 
+	// println("---------------leader2 out-------------------------")
+
 	// old leader connected again
 	cfg.connect(leader1)
-
+	// println("---------------leader1 ON-------------------------")
+	// Here Fail!!	I guess it's because of AppendEntries!
 	cfg.one(104, 2, true)
 
 	// all together now
 	cfg.connect(leader2)
-
+	// println("---------------Leader2 ON-------------------------")
 	cfg.one(105, servers, true)
 
 	cfg.end()
@@ -813,6 +820,7 @@ func TestPersist32C(t *testing.T) {
 // haven't been committed yet.
 //
 func TestFigure82C(t *testing.T) {
+	SpliteLineLog()
 	servers := 5
 	cfg := make_config(t, servers, false, false)
 	defer cfg.cleanup()
@@ -898,10 +906,13 @@ func TestUnreliableAgree2C(t *testing.T) {
 }
 
 func TestFigure8Unreliable2C(t *testing.T) {
+
 	servers := 5
 	cfg := make_config(t, servers, true, false)
 	defer cfg.cleanup()
 
+	SpliteLineLog()
+	SpliteLineLog()
 	cfg.begin("Test (2C): Figure 8 (unreliable)")
 
 	cfg.one(rand.Int()%10000, 1, true)
@@ -946,10 +957,14 @@ func TestFigure8Unreliable2C(t *testing.T) {
 			cfg.connect(i)
 		}
 	}
+	SpliteLineLog()
+	SpliteLineLog()
 
 	cfg.one(rand.Int()%10000, servers, true)
 
 	cfg.end()
+	SpliteLineLog()
+	SpliteLineLog()
 }
 
 func internalChurn(t *testing.T, unreliable bool) {
@@ -1117,7 +1132,7 @@ func snapcommon(t *testing.T, name string, disconnect bool, reliable bool, crash
 
 	cfg.one(rand.Int(), servers, true)
 	leader1 := cfg.checkOneLeader()
-
+	// println("-----------1------------------")
 	for i := 0; i < iters; i++ {
 		victim := (leader1 + 1) % servers
 		sender := leader1
@@ -1134,23 +1149,24 @@ func snapcommon(t *testing.T, name string, disconnect bool, reliable bool, crash
 			cfg.crash1(victim)
 			cfg.one(rand.Int(), servers-1, true)
 		}
-
+		// println("-----------2------------------")
 		// perhaps send enough to get a snapshot
 		nn := (SnapShotInterval / 2) + (rand.Int() % SnapShotInterval)
 		for i := 0; i < nn; i++ {
 			cfg.rafts[sender].Start(rand.Int())
 		}
-
+		// println("-----------3------------------")
 		// let applier threads catch up with the Start()'s
 		if disconnect == false && crash == false {
 			// make sure all followers have caught up, so that
 			// an InstallSnapshot RPC isn't required for
 			// TestSnapshotBasic2D().
 			cfg.one(rand.Int(), servers, true)
+			// println("-----------3-1-----------------")
 		} else {
 			cfg.one(rand.Int(), servers-1, true)
 		}
-
+		// println("-----------4------------------")
 		if cfg.LogSize() >= MAXLOGSIZE {
 			cfg.t.Fatalf("Log size too large")
 		}
@@ -1161,12 +1177,14 @@ func snapcommon(t *testing.T, name string, disconnect bool, reliable bool, crash
 			cfg.one(rand.Int(), servers, true)
 			leader1 = cfg.checkOneLeader()
 		}
+		// println("-----------5------------------")
 		if crash {
 			cfg.start1(victim, cfg.applierSnap)
 			cfg.connect(victim)
 			cfg.one(rand.Int(), servers, true)
 			leader1 = cfg.checkOneLeader()
 		}
+		// println("-----------6------------------")
 	}
 	cfg.end()
 }

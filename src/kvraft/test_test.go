@@ -1,16 +1,19 @@
 package kvraft
 
-import "6.824/porcupine"
-import "6.824/models"
-import "testing"
-import "strconv"
-import "time"
-import "math/rand"
-import "strings"
-import "sync"
-import "sync/atomic"
-import "fmt"
-import "io/ioutil"
+import (
+	"fmt"
+	"io/ioutil"
+	"math/rand"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"6.824/models"
+	"6.824/porcupine"
+)
 
 // The tester generously allows solutions to complete elections in one second
 // (much more than the paper's range of timeouts).
@@ -405,6 +408,7 @@ func GenericTestSpeed(t *testing.T, part string, maxraftstate int) {
 	start := time.Now()
 	for i := 0; i < numOps; i++ {
 		ck.Append("x", "x 0 "+strconv.Itoa(i)+" y")
+		// println(runtime.NumGoroutine())
 	}
 	dur := time.Since(start)
 
